@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="RichardsonDegenerate.vcxproj" />
+  <Project Path="RichardsonDegenerate.vcxproj" Id="11cd3980-4424-4cd0-9166-6e515498714b" />
 </Solution>
