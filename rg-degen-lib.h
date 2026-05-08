@@ -57,4 +57,32 @@ public:
 	void row_swap(int idx1, int idx2, std::vector<std::vector<std::complex<double>>>& matrix);
 	void row_swap(int idx1, int idx2, std::vector<std::vector<int>>& matrix);
 };
+
+class cPolynomial
+{
+private:
+	double& pG;
+	int pDegree = 0;
+	std::vector<std::vector<std::complex<double>>>& pLambda;
+	std::vector<double>& pEnergies;
+	std::vector<int>& pOccupations;
+	std::vector<int>& pDegeneracies;
+	std::vector<std::complex<double>> pCoefficients;
+	std::complex<double> firstDer;
+	std::complex<double> secondDer;
+public:
+	cPolynomial(std::vector<std::vector<std::complex<double>>>& lambdaData, std::vector<double>& energyData, std::vector<int>& degData, std::vector<int>& occData, double& g)
+		:pLambda(lambdaData), pEnergies(energyData), pDegeneracies(degData), pOccupations(occData), pG(g) {
+		init_proper_lambda();
+		find_coefficients();
+	}
+	double binom(int n, int k);
+	std::vector<std::vector<std::complex<double>>> properLambda;
+	std::complex<double> bell_partials(int nMax, int bellIndex, std::vector<std::complex<double>> currentLambda);
+	void init_proper_lambda();
+	void find_coefficients();
+	std::complex<double> value(std::complex<double> zVal, int currentDegree);
+	void deflate(std::complex<double> root);
+	void root_finder(std::vector<std::complex<double>>& roots);
+};
 #endif // !RGDEGENLIB_H_

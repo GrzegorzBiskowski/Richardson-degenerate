@@ -265,3 +265,208 @@ void LUDecomp::row_swap(int idx1, int idx2, std::vector<std::vector<int>>& matri
 		matrix[idx2][i] = temp;
 	}
 }
+
+void cPolynomial::init_proper_lambda()
+{
+	//std::cout << "PROPER LAMBDA\n";
+	std::vector<std::complex<double>> tempVec;
+	for (int i = 0; i < pEnergies.size(); i++)
+	{
+		tempVec.clear();
+		if (pOccupations[i] > 0)
+		{
+			for (int j = 0; j < pOccupations[i]; j++)
+			{
+				tempVec.push_back(pLambda[i][j]/pG);
+			}
+			properLambda.push_back(tempVec);
+			/*for (int k = 0; k < tempVec.size(); k++)
+			{
+				std::cout << real(tempVec[k]) << '\t';
+			}
+			std::cout << '\n';*/
+		}
+		else
+		{
+			tempVec.push_back(0);
+			properLambda.push_back(tempVec);
+		}
+	}
+}
+
+std::complex<double> cPolynomial::bell_partials(int nMax, int bellIndex, std::vector<std::complex<double>> currentLambda)
+{
+	std::vector<std::vector<std::complex<double>>> bellPartials;
+	std::vector<std::complex<double>> tempVec;
+	std::complex<double> sum;
+	for (int i = 0; i <= nMax; i++)
+	{
+		tempVec.push_back(0);
+	}
+	for (int i = 0; i <= nMax; i++)
+	{
+		bellPartials.push_back(tempVec);
+	}
+	bellPartials[0][0] = 1;
+	for (int n = 1; n <= nMax; n++)
+	{
+		for (int k = 1; k <= nMax; k++)
+		{
+			sum = 0;
+			for (int i = 1; i <= n-k+1; i++)
+			{
+				sum += binom(n - 1, i - 1) * currentLambda[i - 1] * bellPartials[n - i][k - 1];
+			}
+			bellPartials[n][k] = sum;
+		}
+	}
+	/*for (int i = 0; i <= nMax; i++)
+	{
+		for (int j = 0; j <= nMax; j++)
+		{
+			std::cout << real(bellPartials[i][j]) << '\t';
+		}
+		std::cout << '\n';
+	}*/
+	std::complex<double> result = 0;
+	for (int i = 0; i <= nMax; i++)
+	{
+		result += bellPartials[bellIndex][i];
+	}
+	//std::cout << "RESULT = " << result << '\n';
+	return result;
+}
+
+void cPolynomial::find_coefficients()
+{
+	int pairCount = 0, kIndex = 1, energyIndex = 0;
+	for (int i = 0; i < pEnergies.size(); i++)
+	{
+		pairCount += pOccupations[i];
+	}
+	std::vector<std::vector<std::complex<double>>> aMatrix(pairCount, std::vector<std::complex<double>>(pairCount));
+	std::vector<std::complex<double>> bVector(pairCount);
+	double insideProd;
+	for (int i = 0; i < pairCount; i++)
+	{
+		if (kIndex > pOccupations[energyIndex])
+		{
+			kIndex = 1;
+			energyIndex++;
+			i--;
+			continue;
+		}
+		for (int m = 0; m < pairCount; m++)
+		{
+			insideProd = 1.0;
+			for (int z = m; z > m - kIndex; z--)
+			{
+				insideProd *= z;
+			}
+			aMatrix[i][m] = bell_partials(pOccupations[energyIndex], kIndex, properLambda[energyIndex]) * pow(pEnergies[energyIndex], m) - insideProd;
+		}
+		insideProd = 1;
+		for (int z = pairCount; z > pairCount - kIndex; z--)
+		{
+			insideProd *= z;
+		}
+		bVector[i] = insideProd * pow(pEnergies[energyIndex], pairCount - kIndex) - bell_partials(pOccupations[energyIndex], kIndex, properLambda[energyIndex]) * pow(pEnergies[energyIndex], pairCount);
+		kIndex++;
+	}
+	/*std::cout << "AMATRIX:\n";
+	for (int i = 0; i < pairCount; i++)
+	{
+		for (int j = 0; j < pairCount; j++)
+		{
+			std::cout << real(aMatrix[i][j]) << '\t';
+		}
+		std::cout << '\n';
+	}
+	std::cout << "BVECTOR:\n";
+	for (int i = 0; i < pairCount; i++)
+	{
+		std::cout << real(bVector[i]) << '\t';
+	}
+	std::cout << '\n';*/
+	LUDecomp coeffSolver = LUDecomp(aMatrix);
+	coeffSolver.solve(bVector, bVector);
+	pCoefficients.push_back(1);
+	for (int i = 1; i <= pairCount; i++)
+	{
+		pCoefficients.push_back(bVector[pairCount - i]);
+	}
+	std::cout << "COEFFICIENTS:\n";
+	for (int i = 0; i <= pairCount; i++)
+	{
+		std::cout << real(pCoefficients[i]) << '\t';
+	}
+	std::cout << '\n';
+}
+
+double cPolynomial::binom(int n, int k)
+{
+	return tgamma(n + 1) / (tgamma(k + 1) * tgamma(n - k + 1));
+}
+
+std::complex<double> cPolynomial::value(std::complex<double> zVal, int currentDegree)
+{
+	std::complex<double> cVal = pCoefficients[0];
+	firstDer = static_cast<std::complex<double>>(currentDegree) * pCoefficients[0];
+	secondDer = static_cast<std::complex<double>>(currentDegree * (currentDegree - 1)) * pCoefficients[0];
+	for (int i = 1; i <= currentDegree; i++)
+	{
+		cVal = cVal * zVal + pCoefficients[i];
+		if (i <= currentDegree - 1)
+		{
+			firstDer = firstDer * zVal + static_cast<std::complex<double>>(currentDegree - i) * pCoefficients[i];
+		}
+		if (i <= currentDegree - 2)
+		{
+			secondDer = secondDer * zVal + static_cast<std::complex<double>>((currentDegree - i) * (currentDegree - i - 1)) * pCoefficients[i];
+		}
+	}
+	return cVal;
+}
+
+void cPolynomial::deflate(std::complex<double> root)
+{
+	for (int i = 1; i <= pDegree; i++)
+	{
+		pCoefficients[i] += pCoefficients[i - 1] * root;
+	}
+}
+
+void cPolynomial::root_finder(std::vector<std::complex<double>>& roots)
+{
+	pDegree = roots.size();
+	int total = roots.size();
+	std::complex<double> initZ, val, aChange, root, gVal, hVal;
+	for (int i = 0; i < total; i++)
+	{
+		initZ = roots[i];
+		do
+		{
+			val = value(initZ, pDegree);
+			if (abs(val) < 1e-10)
+			{
+				roots[i] = initZ;
+				break;
+			}
+			gVal = firstDer / val;
+			hVal = pow(gVal, 2) - secondDer / val;
+			root = sqrt(static_cast<std::complex<double>>(pDegree - 1) * static_cast<std::complex<double>>(pDegree) * hVal - pow(gVal, 2));
+			if (abs(gVal + root) > abs(gVal - root))
+			{
+				aChange = static_cast<std::complex<double>>(pDegree) / (gVal + root);
+			}
+			else
+			{
+				aChange = static_cast<std::complex<double>>(pDegree) / (gVal - root);
+			}
+			initZ -= aChange;
+		} while (abs(aChange) > 1e-7);
+		roots[i] = initZ;
+		deflate(initZ);
+		pDegree -= 1;
+	}
+}
