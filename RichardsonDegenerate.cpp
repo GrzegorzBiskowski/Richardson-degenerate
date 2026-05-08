@@ -18,10 +18,7 @@ int main()
 
     init_data();
     cEquations test = cEquations(rGSystem.lambda,rGSystem.occupation, rGSystem.degeneracies, rGSystem.energies, 0.1);
-    for (int i = 0; i < 9; i++)
-    {
-        std::cout << test.function_i(rGSystem.lambda, i) << '\n';
-    }
+    test.newton_raphson();
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> chronoDiff = end - start;
