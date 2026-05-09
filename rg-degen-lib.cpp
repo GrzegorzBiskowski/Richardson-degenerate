@@ -56,32 +56,37 @@ std::complex<double> cEquations::function_i(std::vector<std::vector<std::complex
 	{
 		temp2 = 0.0;
 	}
-	//std::cout << "TEMP2 = " << temp2 << '\n';
+	//std::cout << "TEMP2 = " << temp2 << '\t';
 	for (int k = 0; k < equationIndex; k++)
 	{
 		sum1 += binom(equationIndex - 1, k) * xVector[energyIndex][k] * xVector[energyIndex][equationIndex - k - 1];
 	}
-	//std::cout << "SUM1 = " << sum1 << '\n';
+	//std::cout << "SUM1 = " << sum1 << '\t';
 	for (int k = 1; k < equationIndex; k++)
 	{
 		for (int i = 0; i < eEnergies.size(); i++)
 		{
 			if (i != energyIndex)
 			{
-				sum2 += (eG * eDegeneracies[i] * tgamma(equationIndex)) / (pow(eEnergies[i] - eEnergies[energyIndex], k) * tgamma(equationIndex - k - 1)) * xVector[energyIndex][equationIndex - k];
+				sum2 += (eG * eDegeneracies[i] * tgamma(equationIndex)) / (pow(eEnergies[i] - eEnergies[energyIndex], k) * tgamma(equationIndex - k+1)) * xVector[energyIndex][equationIndex - k];
 			}
 		}
 	}
 	//std::cout << "SUM2 = " << sum2 << '\n';
+	sum3 = 0;
 	for (int i = 0; i < eEnergies.size(); i++)
 	{
 		if (i != energyIndex)
 		{
+			//std::cout << "eG = " << eG << " eDegeneracies[i] = " << eDegeneracies[i] << " tgamma(equationIndex) = " << tgamma(equationIndex) << " xVector[enIdx][0] = " << xVector[energyIndex][0] << '\n';
+			//std::cout << "xVector[i][0] = " << xVector[i][0] << " eEnergies[i] = " << eEnergies[i] << " eEnergies[energyIndex] = " << eEnergies[energyIndex] << '\n';
 			sum3 += eG * eDegeneracies[i] * tgamma(equationIndex) * (xVector[energyIndex][0] - xVector[i][0]) / (pow(eEnergies[i] - eEnergies[energyIndex], equationIndex));
+			//std::cout << "(i) = " << i << " current sum3 = " << sum3 << '\n';
 		}
 	}
+	//std::cout << '\n';
 	//std::cout << "SUM3 = " << sum3 << '\n';
-	std::complex<double> result = temp2 - xVector[energyIndex][equationIndex - 1] + sum1 - sum2 + sum3;
+	std::complex<double> result = temp2 - xVector[energyIndex][equationIndex - 1] + sum1 + sum2 + sum3;
 	return result;
 }
 
@@ -111,11 +116,34 @@ void cEquations::newton_raphson()
 				for (int k = 0; k < totalLambda; k++)
 				{
 					jacobian[k][currentIndex] = imag(function_i(dLambda, k)) / imag(PREC);
+					if (currentIndex == 0)
+					{
+						minusFVec[k] = -function_i(eLambda, k);
+						//std::cout << "minusFVec[" << k << "] = " << minusFVec[k] << '\n';
+					}
 				}
-				minusFVec[currentIndex] = -function_i(eLambda, currentIndex);
+				/*std::cout << "JACOBIAN ROW FINISHED" << '\n';
+
+				std::cout << "func_i = " << -minusFVec[currentIndex] << '\n';
+				std::cout << "MINUS F VEC ELEMENT FINISHED" << '\n';*/
 				currentIndex++;
 			}
 		}
+		/*std::cout << "JACOBIAN:" << '\n';
+		for (int i = 0; i < totalLambda; i++)
+		{
+			for (int j = 0; j < totalLambda; j++)
+			{
+				std::cout << real(jacobian[i][j]) << '\t';
+			}
+			std::cout << '\n';
+		}
+		std::cout << "MINUS F VEC: " << '\n';
+		for (int i = 0; i < totalLambda; i++)
+		{
+			std::cout << real(minusFVec[i]) << '\t';
+		}
+		std::cout << '\n';*/
 		LUDecomp decomposition = LUDecomp(jacobian);
 		decomposition.solve(minusFVec, minusFVec);
 		currentIndex = 0;
@@ -270,6 +298,7 @@ void cPolynomial::init_proper_lambda()
 {
 	//std::cout << "PROPER LAMBDA\n";
 	std::vector<std::complex<double>> tempVec;
+	//std::cout << "PROPER LAMBDA\n";
 	for (int i = 0; i < pEnergies.size(); i++)
 	{
 		tempVec.clear();
@@ -292,6 +321,7 @@ void cPolynomial::init_proper_lambda()
 			properLambda.push_back(tempVec);
 		}
 	}
+	//std::cout << "PROPER LAMBDA SIZE = " << properLambda.size() << '\n';
 }
 
 std::complex<double> cPolynomial::bell_partials(int nMax, int bellIndex, std::vector<std::complex<double>> currentLambda)
@@ -356,6 +386,7 @@ void cPolynomial::find_coefficients()
 			i--;
 			continue;
 		}
+		//std::cout << "energyIndex = " << energyIndex << '\t' << "kIndex = " << kIndex << '\n';
 		for (int m = 0; m < pairCount; m++)
 		{
 			insideProd = 1.0;
@@ -363,13 +394,17 @@ void cPolynomial::find_coefficients()
 			{
 				insideProd *= z;
 			}
-			aMatrix[i][m] = bell_partials(pOccupations[energyIndex], kIndex, properLambda[energyIndex]) * pow(pEnergies[energyIndex], m) - insideProd;
+			//std::cout << "bell_partials = " << bell_partials(pOccupations[energyIndex], kIndex, properLambda[energyIndex]) << '\n';
+			//std::cout << "pow(pEnergies[energyIndex],m) = " << pow(pEnergies[energyIndex], m) << '\n';
+			aMatrix[i][m] = bell_partials(pOccupations[energyIndex], kIndex, properLambda[energyIndex]) * pow(pEnergies[energyIndex], m) - insideProd*pow(pEnergies[energyIndex],m-kIndex);
 		}
 		insideProd = 1;
 		for (int z = pairCount; z > pairCount - kIndex; z--)
 		{
 			insideProd *= z;
 		}
+		//std::cout << "insideProd = " << insideProd << '\n';
+		//std::cout << "energyIndex = " << energyIndex << '\n';
 		bVector[i] = insideProd * pow(pEnergies[energyIndex], pairCount - kIndex) - bell_partials(pOccupations[energyIndex], kIndex, properLambda[energyIndex]) * pow(pEnergies[energyIndex], pairCount);
 		kIndex++;
 	}
@@ -393,14 +428,18 @@ void cPolynomial::find_coefficients()
 	pCoefficients.push_back(1);
 	for (int i = 1; i <= pairCount; i++)
 	{
-		pCoefficients.push_back(bVector[pairCount - i]);
+		pCoefficients.push_back(bVector[pairCount-i]);
 	}
-	std::cout << "COEFFICIENTS:\n";
+	/*for (int i = 0; i < pairCount; i++)
+	{
+		pCoefficients.push_back(bVector[i]);
+	}*/
+	/*std::cout << "COEFFICIENTS:\n";
 	for (int i = 0; i <= pairCount; i++)
 	{
 		std::cout << real(pCoefficients[i]) << '\t';
 	}
-	std::cout << '\n';
+	std::cout << '\n';*/
 }
 
 double cPolynomial::binom(int n, int k)
